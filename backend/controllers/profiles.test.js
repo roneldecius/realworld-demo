@@ -1,10 +1,22 @@
 const { NotFoundError, UnauthorizedError } = require("../helper/customErrors");
 const { makeInstance, makeRes, mockRequire } = require("../test-utils/fakeModels");
 
-const User = { findOne: vi.fn() };
+const User = { findOne: vi.fn(), findAndCountAll: vi.fn() };
 mockRequire(require.resolve("../models"), { User });
 
-const { getProfile, followToggler } = require("./profiles");
+const { allProfiles, getProfile, followToggler } = require("./profiles");
+
+// Minimal stand-in for Sequelize's real ordering/pagination, scoped to just
+// the query shape allProfiles actually constructs, mirroring articles.test.js's
+// fakeArticleList so list behavior can be asserted on the returned response
+// body rather than on what arguments were passed to a mock.
+function fakeUserList(seedRows) {
+  return ({ limit, offset } = {}) => {
+    const rows = [...seedRows].sort((a, b) => a.username.localeCompare(b.username));
+    const count = rows.length;
+    return Promise.resolve({ rows: rows.slice(offset, offset + limit), count });
+  };
+}
 
 function makeProfile({ hasFollower = false, followersCount = 0 } = {}) {
   return makeInstance(
@@ -22,6 +34,69 @@ const loggedUser = makeInstance({ id: 2, username: "reader" });
 
 beforeEach(() => {
   User.findOne.mockReset();
+  User.findAndCountAll.mockReset();
+});
+
+describe("allProfiles", () => {
+  function makeSeedUsers() {
+    return [
+      makeInstance({ id: 1, username: "carol", bio: "c", image: "c.png" }),
+      makeInstance({ id: 2, username: "alice", bio: "a", image: "a.png" }),
+      makeInstance({ id: 3, username: "bob", bio: "b", image: "b.png" }),
+    ];
+  }
+
+  // AC-084: reachable without an Authorization header (no loggedUser).
+  test("no loggedUser -> succeeds, does not require authentication", async () => {
+    User.findAndCountAll.mockImplementation(fakeUserList(makeSeedUsers()));
+    const res = makeRes();
+    const next = vi.fn();
+
+    await allProfiles({ loggedUser: undefined, query: {} }, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalled();
+  });
+
+  // AC-085: with no explicit limit/offset, results are capped at 3 per page,
+  // ordered by username ascending, while the total count reflects every row.
+  test("default pagination -> 3 per page, alphabetical order, true total count", async () => {
+    const seed = [...makeSeedUsers(), makeInstance({ id: 4, username: "dave" })];
+    User.findAndCountAll.mockImplementation(fakeUserList(seed));
+    const res = makeRes();
+
+    await allProfiles({ loggedUser: undefined, query: {} }, res, vi.fn());
+
+    const { profiles, profilesCount } = res.json.mock.calls[0][0];
+    expect(profilesCount).toBe(4);
+    expect(profiles).toHaveLength(3);
+    expect(profiles.map((p) => p.username)).toEqual(["alice", "bob", "carol"]);
+  });
+
+  // AC-085: a custom limit/offset returns the corresponding page (offset is
+  // a page index, mirroring REQ-013's `offset * limit` article convention:
+  // limit=2/offset=1 here is the *second* page of 2, i.e. rows 2-3).
+  test("custom limit/offset -> corresponding page", async () => {
+    const seed = [...makeSeedUsers(), makeInstance({ id: 4, username: "dave" })];
+    User.findAndCountAll.mockImplementation(fakeUserList(seed));
+    const res = makeRes();
+
+    await allProfiles({ loggedUser: undefined, query: { limit: 2, offset: 1 } }, res, vi.fn());
+
+    const { profiles, profilesCount } = res.json.mock.calls[0][0];
+    expect(profilesCount).toBe(4);
+    expect(profiles.map((p) => p.username)).toEqual(["carol", "dave"]);
+  });
+
+  // AC-086: returned entries never carry email or password.
+  test("excludes email from the query attributes", async () => {
+    User.findAndCountAll.mockImplementation(fakeUserList(makeSeedUsers()));
+
+    await allProfiles({ loggedUser: undefined, query: {} }, makeRes(), vi.fn());
+
+    const [options] = User.findAndCountAll.mock.calls[0];
+    expect(options.attributes).toEqual({ exclude: ["email"] });
+  });
 });
 
 describe("getProfile", () => {

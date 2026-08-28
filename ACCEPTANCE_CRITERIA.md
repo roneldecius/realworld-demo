@@ -429,6 +429,32 @@ changed.
 
 ---
 
+### US-030 — User directory page
+*(REQ-051, REQ-052)*
+
+- **AC-084** — Given the directory listing endpoint, when requested
+  without an `Authorization` header, then it succeeds and returns a page
+  of user profiles rather than an authentication error (mirrors REQ-001's
+  pattern for other read endpoints).
+- **AC-085** — Given more user accounts exist than fit on one page, when
+  the directory endpoint is requested with `limit`/`offset` query
+  params, then it returns the corresponding page ordered by `username`
+  ascending; when omitted, `limit` defaults to 3 and `offset` to 0.
+- **AC-086** — Given the directory endpoint's response, when inspected,
+  then each entry contains only `username`, `bio`, and `image` — no
+  `email`, `password`, or other account field is present.
+- **AC-087** — Given the directory page, when viewed by any visitor
+  (authenticated or anonymous), then it lists entries showing an avatar
+  (the default image per REQ-033 when the account has none set),
+  username, and bio snippet, and each entry links to that account's
+  `/profile/:username` page.
+- **AC-088** — Given more directory entries exist than fit one page, when
+  the visitor interacts with the page's pagination controls, then the
+  corresponding page of entries loads (mirrors AC-033's pagination
+  behavior for article listings).
+
+---
+
 ## Traceability Matrix
 
 | Requirement | User Story | Acceptance Criteria |
@@ -483,3 +509,5 @@ changed.
 | REQ-048 | US-028 | AC-078, AC-079 |
 | REQ-049 | US-029 | AC-080, AC-081 |
 | REQ-050 | US-029 | AC-082, AC-083 |
+| REQ-051 | US-030 | AC-084–AC-086 |
+| REQ-052 | US-030 | AC-087, AC-088 |

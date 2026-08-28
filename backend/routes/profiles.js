@@ -1,7 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const verifyToken = require("../middleware/authentication");
-const { getProfile, followToggler } = require("../controllers/profiles");
+const {
+  allProfiles,
+  getProfile,
+  followToggler,
+} = require("../controllers/profiles");
+
+//? All Profiles
+router.get("/", verifyToken, allProfiles);
 
 //? Profile
 router.get("/:username", verifyToken, getProfile);

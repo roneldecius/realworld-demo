@@ -420,3 +420,19 @@ A user's profile page displays a link for each of `websiteUrl`,
 submitted URL, visible to both authenticated and anonymous visitors. An
 account with none of these fields set renders its profile identically to
 before this requirement existed — no placeholder or layout change.
+
+### REQ-051 — User directory listing supports pagination
+A dedicated endpoint (`GET /api/profiles`) returns a page of user
+profiles across the platform, processed whether or not an `Authorization`
+header is present (REQ-001's pattern). Each entry contains `username`,
+`bio`, and `image` only — no `email`, `password`, or other account field.
+Listing supports a page size (`limit`, default 3) and a page index
+(`offset`, default 0), and results are ordered by `username` ascending.
+
+### REQ-052 — Directory page displays linked author profiles
+A dedicated, unauthenticated-reachable page displays the paginated
+listing from REQ-051 as a list of entries, each showing an avatar
+(falling back to the default image per REQ-033 when the account has none
+set), username, and bio snippet, and linking to that account's
+`/profile/:username` page. Pagination controls page through the full set
+of accounts, 3 per page to match REQ-051's default.
