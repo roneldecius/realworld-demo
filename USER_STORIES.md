@@ -149,3 +149,10 @@ blocked at the database level, not just by the tool's own claims.
 presences on my profile, so that readers who like my writing can find me
 elsewhere.
 *Related requirements: REQ-049, REQ-050*
+
+---
+
+**US-030** — As a user, I want to browse a directory of all authors, so
+that I can discover new people to follow without already knowing their
+username.
+*Related requirements: REQ-051, REQ-052*
